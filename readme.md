@@ -1,16 +1,28 @@
-# MCP Weather Agent
+# MCP Weather 
 
-An AI-powered weather assistant built on the **Model Context Protocol (MCP)**. The agent employs **GPT-4o-mini** as its reasoning engine and intelligently routes user queries to two specialized MCP tool-servers: one dedicated to the United States and one dedicated to Israel.
-
----
-
-## Overview
-
-The MCP Weather Agent demonstrates how a large language model can be paired with dedicated, purpose-built tool-servers to deliver accurate, real-time information without requiring the model itself to know how that information is retrieved. Rather than relying on a single monolithic integration, the system separates concerns cleanly: one server retrieves official U.S. weather data through a government API, while a second automates a browser session to extract Israeli forecast data from a local weather portal. The host application unifies both sources behind a single conversational interface, allowing the model to select the correct tool automatically based on the intent of the question.
+### An Intelligent, Multi-Region Weather Intelligence Platform Built on the Model Context Protocol
 
 ---
 
-## Architecture
+## Executive Summary
+
+The **MCP Weather Agent** is a conversational, AI-driven meteorological assistant engineered atop the **Model Context Protocol (MCP)** — an emerging standard for connecting language models to external tools in a modular, composable fashion. At its core sits **GPT-4o-mini**, which serves as the system's reasoning engine, interpreting natural-language queries and autonomously determining which specialized backend is best suited to resolve them.
+
+Rather than centralizing all logic within a single service, the platform adopts a distributed, tool-oriented design: distinct MCP servers handle distinct geographies, each optimized for the data source most appropriate to its region. This architecture allows the system to combine an official government API for the United States with an automated browser-based retrieval pipeline for Israel — all orchestrated transparently behind a single, unified conversational interface.
+
+---
+
+## Key Capabilities
+
+- **Autonomous tool selection** — the language model independently determines which server, and which specific tool, should handle each incoming request.
+- **Region-specific data pipelines** — U.S. queries are resolved through the National Weather Service's official REST API, while Israeli queries are resolved through automated browser interaction with a localized weather portal.
+- **Bilingual query handling** — the Israeli pipeline transparently translates common English place names into Hebrew prior to executing a search.
+- **Extensible by design** — new MCP servers, and therefore new regions or data domains, can be introduced with minimal structural change to the host application.
+- **Transparent orchestration** — the underlying model has no knowledge of *how* a tool retrieves its data; it only knows *what* the tool can accomplish, keeping the reasoning layer cleanly decoupled from the data-access layer.
+
+---
+
+## System Architecture
 
 ```
 User (terminal)
@@ -25,31 +37,31 @@ host.py  ──  ChatHost
 Answer
 ```
 
-The host collects the full set of tools exposed by every connected MCP server and presents them to the model as a unified toolkit. When the model selects a tool, the host transparently dispatches the call to the server that owns it. The model itself has no awareness of which server implements which capability — this separation keeps the reasoning layer decoupled from the data-access layer and makes the system straightforward to extend.
+Upon initialization, the host aggregates the complete inventory of tools exposed by every connected MCP server and presents them to the language model as a single, unified toolkit. When the model elects to invoke a tool, the host silently dispatches that call to whichever server implements it — a process entirely invisible to the model itself. This clean separation of concerns is what allows the system to scale gracefully: additional servers can be introduced without requiring any modification to the model's reasoning logic.
 
 ---
 
 ## Prerequisites
 
-| Requirement | Version |
+| Requirement | Version / Notes |
 |---|---|
 | Python | ≥ 3.13 |
 | Package manager | `uv` (recommended) or `pip` |
-| OpenAI API key | Any key with access to `gpt-4o-mini` |
-| Playwright Chromium | Required for Israel weather |
+| OpenAI API key | Any credential with access to `gpt-4o-mini` |
+| Playwright Chromium | Required exclusively for the Israeli weather pipeline |
 
 ---
 
 ## Installation
 
 ```bash
-# 1a. Install dependencies with uv (recommended)
+# 1a. Install project dependencies with uv (recommended)
 uv sync
 
-# 1b. Or with pip
+# 1b. Alternatively, install with pip
 pip install -e .
 
-# 2. Install the Playwright browser (required for Israel weather)
+# 2. Provision the Playwright browser engine (required for Israel weather)
 playwright install chromium
 ```
 
@@ -57,7 +69,7 @@ playwright install chromium
 
 ## Configuration
 
-Create a `.env` file inside `project-template/`:
+Within the `project-template/` directory, create a `.env` file containing your OpenAI credential:
 
 ```env
 OPENAI_API_KEY=sk-...your-key-here...
@@ -65,14 +77,14 @@ OPENAI_API_KEY=sk-...your-key-here...
 
 ---
 
-## Running the Agent
+## Launching the Agent
 
 ```bash
 cd project-template
 python host.py
 ```
 
-The agent launches an interactive chat loop directly in the terminal:
+Upon execution, the agent establishes connections to all configured MCP servers and initiates an interactive command-line session:
 
 ```
 Connected to server with tools: ['get_alerts_in_USA', 'get_forecast_in_USA']
@@ -84,51 +96,61 @@ Type your queries or 'quit' to exit.
 Query:
 ```
 
-Enter a question and press **Enter**. Type `quit` at any time to exit the session.
+Submit any natural-language question and press **Enter**. To terminate the session at any point, type `quit`.
 
 ---
 
-## Example Queries
+## Usage Examples
 
-### 🇺🇸 United States — powered by the National Weather Service API
+### 🇺🇸 United States — National Weather Service Integration
 
-| Question | Agent Behavior |
+| Sample Query | System Response |
 |---|---|
-| `Are there any weather alerts in California?` | Retrieves active NWS alerts for the state of `CA` |
-| `What are the current warnings in Texas?` | Retrieves active NWS alerts for the state of `TX` |
-| `What is the weather forecast for New York City?` | Looks up the forecast for coordinates `40.71, -74.01` |
-| `Give me a 5-period forecast for Chicago.` | Looks up the forecast for coordinates `41.85, -87.65` |
-| `Is there a tornado watch anywhere in Oklahoma?` | Retrieves and filters active alerts for the state of `OK` |
+| `Has the National Weather Service issued any active advisories for California?` | Queries and returns live NWS alerts for the state of `CA` |
+| `Summarize the current severe weather warnings affecting Texas.` | Queries and returns live NWS alerts for the state of `TX` |
+| `Could you outline the upcoming forecast trajectory for New York City?` | Resolves and returns the forecast for coordinates `40.71, -74.01` |
+| `Provide a five-period outlook for the Chicago metropolitan area.` | Resolves and returns the forecast for coordinates `41.85, -87.65` |
+| `Is there any indication of tornadic activity across Oklahoma at present?` | Queries and filters live NWS alerts for the state of `OK` |
+| `What atmospheric conditions are expected in Miami over the coming days?` | Resolves and returns the forecast for Miami's registered coordinates |
 
-### 🇮🇱 Israel — powered by Playwright browser automation on weather2day.co.il
+### 🇮🇱 Israel — Automated Portal Retrieval via weather2day.co.il
 
-| Question | Agent Behavior |
+| Sample Query | System Response |
 |---|---|
-| `What is the weather forecast in Jerusalem?` | Opens a browser session and searches for ירושלים |
-| `Tell me the forecast for Tel Aviv.` | Opens a browser session and searches for תל אביב |
-| `How is the weather in Haifa today?` | Opens a browser session and searches for חיפה |
-| `What is the weather in Beer Sheva?` | Opens a browser session and searches for באר שבע |
-| `Show me the forecast for Eilat.` | Opens a browser session and searches for אילת |
+| `Could you retrieve the latest forecast for Jerusalem?` | Launches a browser session and queries ירושלים |
+| `What conditions should I expect in Tel Aviv this afternoon?` | Launches a browser session and queries תל אביב |
+| `Please provide today's meteorological outlook for Haifa.` | Launches a browser session and queries חיפה |
+| `How is the weather shaping up in Beer Sheva this week?` | Launches a browser session and queries באר שבע |
+| `I'd like the current forecast for Eilat, please.` | Launches a browser session and queries אילת |
+| `What's the temperature outlook for Netanya today?` | Translates the city name and queries נתניה |
 
-> **Note:** The Israel server automatically translates common English city names into Hebrew before performing the search.
+> **Note:** The Israeli pipeline automatically translates recognized English place names into Hebrew prior to executing each search, requiring no manual transliteration from the user.
 
 ---
 
-## Project Structure
+## Repository Structure
 
 ```
 project-template/
-├── host.py              # ChatHost — orchestrates OpenAI, all MCP clients, and the chat loop
-├── client.py             # MCPClient — connects to a single MCP server via stdio
-├── weather_USA.py         # MCP server: U.S. alerts and forecasts via the NWS REST API
-├── weather_Israel.py       # MCP server: Israeli city forecasts via Playwright scraping
-└── pyproject.toml        # Project metadata and dependencies
+├── host.py              # ChatHost — orchestrates OpenAI, all MCP clients, and the interactive session
+├── client.py             # MCPClient — manages a single stdio connection to an MCP server
+├── weather_USA.py         # MCP server: alerts and forecasts via the NWS REST API
+├── weather_Israel.py       # MCP server: Israeli city forecasts via Playwright automation
+└── pyproject.toml        # Project metadata and dependency declarations
 ```
 
 ---
 
-## Notes
+## Operational Notes
 
-- **SSL (Netfree):** The project disables SSL verification (`verify=False`) to operate correctly behind a Netfree-filtered network. If you are not operating on a filtered network, remove the `httpx.HTTPTransport(verify=False)` lines.
-- **Browser window:** The Israel server launches a **visible** Chromium window (`headless=False`) so that the scraping process can be observed directly. Set this to `headless=True` to run the browser silently in the background.
-- **Extending the system:** Additional MCP servers can be registered by adding further `MCPClient` instances inside the `ChatHost.__init__` method in `host.py`. Tools exposed by new servers are discovered and namespaced automatically, with no further configuration required.
+- **SSL configuration (Netfree compatibility):** The project disables SSL certificate verification (`verify=False`) to ensure compatibility with Netfree-filtered network environments. Deployments outside such environments should remove the `httpx.HTTPTransport(verify=False)` declarations to restore standard certificate validation.
+- **Browser visibility:** The Israeli server launches Chromium in **visible** mode (`headless=False`) by default, allowing the scraping workflow to be observed in real time — a useful behavior during development and debugging. For production or unattended deployments, set this to `headless=True`.
+- **Extensibility:** Incorporating additional regions or data domains requires only the registration of a new `MCPClient` instance within the `ChatHost.__init__` method in `host.py`. Tools exposed by any newly connected server are discovered and namespaced automatically, with no further changes required elsewhere in the codebase.
+
+---
+
+## Suggested Future Enhancements
+
+- Introducing caching to reduce redundant calls to the NWS API and the Israeli weather portal.
+- Adding a lightweight web-based front end alongside the existing terminal interface.
+- Expanding regional coverage to additional countries via new, purpose-built MCP servers.
