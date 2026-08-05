@@ -1,6 +1,12 @@
 # MCP Weather Agent
 
-An AI-powered weather assistant built on the **Model Context Protocol (MCP)** architecture. The agent uses **GPT-4o-mini** as its reasoning engine and routes queries to specialized MCP tool-servers — one for the United States and one for Israel.
+An AI-powered weather assistant built on the **Model Context Protocol (MCP)**. The agent employs **GPT-4o-mini** as its reasoning engine and intelligently routes user queries to two specialized MCP tool-servers: one dedicated to the United States and one dedicated to Israel.
+
+---
+
+## Overview
+
+The MCP Weather Agent demonstrates how a large language model can be paired with dedicated, purpose-built tool-servers to deliver accurate, real-time information without requiring the model itself to know how that information is retrieved. Rather than relying on a single monolithic integration, the system separates concerns cleanly: one server retrieves official U.S. weather data through a government API, while a second automates a browser session to extract Israeli forecast data from a local weather portal. The host application unifies both sources behind a single conversational interface, allowing the model to select the correct tool automatically based on the intent of the question.
 
 ---
 
@@ -19,7 +25,7 @@ host.py  ──  ChatHost
 Answer
 ```
 
-The host collects all tools from every connected MCP server, exposes them to the model, and automatically dispatches tool calls to the correct server. The model never needs to know which server owns which tool.
+The host collects the full set of tools exposed by every connected MCP server and presents them to the model as a unified toolkit. When the model selects a tool, the host transparently dispatches the call to the server that owns it. The model itself has no awareness of which server implements which capability — this separation keeps the reasoning layer decoupled from the data-access layer and makes the system straightforward to extend.
 
 ---
 
@@ -37,14 +43,13 @@ The host collects all tools from every connected MCP server, exposes them to the
 ## Installation
 
 ```bash
-
 # 1a. Install dependencies with uv (recommended)
 uv sync
 
 # 1b. Or with pip
 pip install -e .
 
-# 2. Install the Playwright browser (needed for Israel weather)
+# 2. Install the Playwright browser (required for Israel weather)
 playwright install chromium
 ```
 
@@ -60,14 +65,14 @@ OPENAI_API_KEY=sk-...your-key-here...
 
 ---
 
-## How to Run
+## Running the Agent
 
 ```bash
 cd project-template
 python host.py
 ```
 
-The agent starts an interactive chat loop in the terminal:
+The agent launches an interactive chat loop directly in the terminal:
 
 ```
 Connected to server with tools: ['get_alerts_in_USA', 'get_forecast_in_USA']
@@ -76,36 +81,36 @@ Connected to server with tools: ['open_weather_forecast_israel', 'enter_weather_
 MCP Client Started!
 Type your queries or 'quit' to exit.
 
-Query: 
+Query:
 ```
 
-Type your question and press **Enter**. Type `quit` to exit.
+Enter a question and press **Enter**. Type `quit` at any time to exit the session.
 
 ---
 
-## Example Questions the Agent Can Answer
+## Example Queries
 
 ### 🇺🇸 United States — powered by the National Weather Service API
 
-| Question | What the agent does |
+| Question | Agent Behavior |
 |---|---|
-| `Are there any weather alerts in California?` | Fetches active NWS alerts for state `CA` |
-| `What are the current warnings in Texas?` | Fetches active NWS alerts for state `TX` |
-| `What is the weather forecast for New York City?` | Looks up forecast for lat `40.71`, lon `-74.01` |
-| `Give me a 5-period forecast for Chicago.` | Looks up forecast for lat `41.85`, lon `-87.65` |
-| `Is there a tornado watch anywhere in Oklahoma?` | Fetches and filters alerts for state `OK` |
+| `Are there any weather alerts in California?` | Retrieves active NWS alerts for the state of `CA` |
+| `What are the current warnings in Texas?` | Retrieves active NWS alerts for the state of `TX` |
+| `What is the weather forecast for New York City?` | Looks up the forecast for coordinates `40.71, -74.01` |
+| `Give me a 5-period forecast for Chicago.` | Looks up the forecast for coordinates `41.85, -87.65` |
+| `Is there a tornado watch anywhere in Oklahoma?` | Retrieves and filters active alerts for the state of `OK` |
 
 ### 🇮🇱 Israel — powered by Playwright browser automation on weather2day.co.il
 
-| Question | What the agent does |
+| Question | Agent Behavior |
 |---|---|
-| `What is the weather forecast in Jerusalem?` | Opens browser, searches for ירושלים |
-| `Tell me the forecast for Tel Aviv.` | Opens browser, searches for תל אביב |
-| `How is the weather in Haifa today?` | Opens browser, searches for חיפה |
-| `What is the weather in Beer Sheva?` | Opens browser, searches for באר שבע |
-| `Show me the forecast for Eilat.` | Opens browser, searches for אילת |
+| `What is the weather forecast in Jerusalem?` | Opens a browser session and searches for ירושלים |
+| `Tell me the forecast for Tel Aviv.` | Opens a browser session and searches for תל אביב |
+| `How is the weather in Haifa today?` | Opens a browser session and searches for חיפה |
+| `What is the weather in Beer Sheva?` | Opens a browser session and searches for באר שבע |
+| `Show me the forecast for Eilat.` | Opens a browser session and searches for אילת |
 
-> **Note:** The Israel server translates common English city names to Hebrew automatically before searching.
+> **Note:** The Israel server automatically translates common English city names into Hebrew before performing the search.
 
 ---
 
@@ -113,17 +118,17 @@ Type your question and press **Enter**. Type `quit` to exit.
 
 ```
 project-template/
-├── host.py              # ChatHost — orchestrates OpenAI + all MCP clients + chat loop
-├── client.py            # MCPClientcts to a single MCP server via stdio
-├── weather_USA.py       # MCP server: US alerts & forecast via NWS REST API
-├── weather_Israel.py    # MCP server: Israeli city forecast via Playwright scraping
-└── pyproject.toml       # Project metadata and dependencies
+├── host.py              # ChatHost — orchestrates OpenAI, all MCP clients, and the chat loop
+├── client.py             # MCPClient — connects to a single MCP server via stdio
+├── weather_USA.py         # MCP server: U.S. alerts and forecasts via the NWS REST API
+├── weather_Israel.py       # MCP server: Israeli city forecasts via Playwright scraping
+└── pyproject.toml        # Project metadata and dependencies
 ```
 
 ---
 
 ## Notes
 
-- **SSL (Netfree):** The project disables SSL verification (`verify=False`) to work behind a Netfree-filtered network. Remove the `httpx.HTTPTransport(verify=False)` lines if you are not on a filtered network.
-- **Browser window:** The Israel server launches a **visible** Chromium window (`headless=False`) so you can see the scraping in action. Change to `headless=True` to run silently.
-- **Adding more servers:** Register additional `MCPClient` instances in the `ChatHost.__init__` method in `host.py`. Tools are discovered and namespaced automatically.
+- **SSL (Netfree):** The project disables SSL verification (`verify=False`) to operate correctly behind a Netfree-filtered network. If you are not operating on a filtered network, remove the `httpx.HTTPTransport(verify=False)` lines.
+- **Browser window:** The Israel server launches a **visible** Chromium window (`headless=False`) so that the scraping process can be observed directly. Set this to `headless=True` to run the browser silently in the background.
+- **Extending the system:** Additional MCP servers can be registered by adding further `MCPClient` instances inside the `ChatHost.__init__` method in `host.py`. Tools exposed by new servers are discovered and namespaced automatically, with no further configuration required.
